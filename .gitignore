@@ -25,6 +25,7 @@ venv/
 myenv/
 rgb-env/
 
+
 # Ignore logs
 logs/
 *.log
