@@ -1,4 +1,7 @@
 .gitignore
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+LICENSE
 README.md
 __main__.py
 ectool
@@ -22,3 +25,4 @@ gui/utils/input_validation.py
 gui/utils/safe_subprocess.py
 gui/utils/system_info.py
 setup.py
+tree.txt
