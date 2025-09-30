@@ -3,6 +3,10 @@ __pycache__/
 *.pyc
 rgb-env/
 venv/
+*backup*
+*patch*
+*fix*
+*patcher*
 myenv/
 .env
 *.log
