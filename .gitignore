@@ -45,4 +45,3 @@ htmlcov/
 coverage.xml
 
 # Ignore tree file if you don't want it versioned
-tree.txt
