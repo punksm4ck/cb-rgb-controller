@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 rgb-env/
 venv/
+myenv/
 .env
 *.log
 .DS_Store
