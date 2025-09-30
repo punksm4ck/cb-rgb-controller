@@ -2,14 +2,6 @@
 README.md
 __main__.py
 ectool
-gui/.venv/bin/Activate.ps1
-gui/.venv/bin/activate
-gui/.venv/bin/activate.csh
-gui/.venv/bin/activate.fish
-gui/.venv/bin/pip
-gui/.venv/bin/pip3
-gui/.venv/bin/pip3.12
-gui/.venv/pyvenv.cfg
 gui/__init__.py
 gui/__pycache__/__init__.cpython-312.pyc
 gui/__pycache__/controller.cpython-312.pyc
