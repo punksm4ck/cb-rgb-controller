@@ -17,6 +17,7 @@ def create_directory_structure():
     
     # Assumes this script is in the project root directory (e.g., rgb_controller_final2/)
     base_dir = Path.cwd()
+    asdf
     
     if base_dir.name != PROJECT_ROOT_DIR_NAME:
         print(f"Warning: This script is intended to be run from the root of the '{PROJECT_ROOT_DIR_NAME}' project directory.")
