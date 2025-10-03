@@ -1,0 +1,117 @@
+# .coderabbit.yaml
+
+# Configuration for the Enhanced RGB Keyboard Controller (v3) project.
+# Focuses on deep analysis, cross-platform compatibility, and robust feedback.
+
+# --- Core Settings ---
+language: "en-US"
+reviews:
+  # Use 'assertive' profile for a detailed, nitpicky review focused on best practices,
+  # error handling, cross-platform compatibility, and security.
+  profile: "assertive"
+  
+  # Ensure automatic review is always enabled for all PRs.
+  auto_review:
+    enabled: true
+    # Do not review draft pull requests, as the code is not ready for final scrutiny.
+    drafts: false
+    # Review every incremental push to an existing PR.
+    auto_incremental_review: true
+
+  # Always include a high-level summary and detailed walkthrough.
+  high_level_summary: true
+  
+  # Enable request_changes_workflow to hold PRs until CodeRabbit's actionable comments are resolved.
+  # This encourages immediate fix of flagged issues (e.g., security, critical bugs).
+  request_changes_workflow: true
+  
+  # Ensure the review status is posted for visibility.
+  review_status: true
+  
+  # Request CodeRabbit to generate a sequence diagram for complex methods or class interactions.
+  sequence_diagrams: true
+  
+  # Suggest labels to categorize PRs immediately (e.g., 'bug', 'enhancement', 'hardware').
+  suggested_labels: true
+
+# --- Custom Review Instructions (The Project's Focus) ---
+# Direct the AI to focus on the most critical and complex aspects of the codebase.
+instructions:
+  - id: "cross_platform_hotkeys"
+    instruction: |
+      Review the hotkey detection and handling logic in `gui/controller.py` (e.g., `setup_global_hotkeys_enhanced`).
+      Ensure that the use of the 'keyboard' library and scan codes is robustly wrapped in platform checks 
+      (Linux, Windows, macOS) to prevent runtime errors on unsupported platforms.
+      Verify that the `_detect_brightness_keys_with_alt_priority` method is correctly prioritizing the ALT 
+      combination, which is crucial for the target Linux/Chromebook users.
+      
+  - id: "hardware_safety_and_ec"
+    instruction: |
+      Scrutinize all interaction points with the `HardwareController` (methods like `set_brightness`, 
+      `set_all_leds_color`, `clear_all_leds`). Look for proper exception handling, especially for `HardwareError` and 
+      `IOError`/`PermissionError`, as these operations require root/admin access and direct I/O.
+      Specifically review the implementation guide and placeholder for "EC Direct" mode to ensure its safety warnings
+      are adequate, and no logic accidentally executes privileged commands without proper checks.
+      
+  - id: "gui_thread_safety"
+    instruction: |
+      The application uses `threading` (e.g., `HWInitThread`, `TrayIconThread`) and `tkinter.after`.
+      Verify that all hardware-modifying operations (e.g., `_apply_brightness_value`, `start_current_effect`) 
+      called from a non-GUI thread are correctly wrapped with `self.root.after(0, ...)` to ensure thread safety 
+      for Tkinter and prevent segmentation faults.
+      
+  - id: "logging_and_diagnostics"
+    instruction: |
+      Check the logging calls (using `self.logger.info`, etc.) and the log output methods (`log_to_gui_diag_area`).
+      Ensure that all critical operations, errors, warnings, and system information (especially hardware detection status)
+      are consistently logged for effective end-user troubleshooting, as detailed in the `README.md` and `CONTRIBUTING.md`.
+      
+  - id: "effect_preview_accuracy"
+    instruction: |
+      In `gui/controller.py`, analyze the preview functions (e.g., `preview_rainbow_zones_cycle`, `preview_starlight`).
+      Verify that the logic for effects, especially the *key-level* simulations (`_simulate_realistic_key_presses_for_reactive_preview`
+      and `_preview_rainbow_with_key_level_bleeding`), accurately reflects the visual effect intended by the RGB model 
+      and respects the `speed_multiplier` from `get_hardware_synchronized_speed`.
+
+# --- Path Filters and Instructions ---
+# Apply stricter rules to core and hardware logic files.
+path_instructions:
+  - path: "gui/core/constants.py"
+    instructions: "Verify all constant values (NUM_ZONES, LEDS_PER_ZONE, delays) are consistent and logically correct."
+  
+  - path: "gui/hardware/controller.py"
+    instructions: "Apply maximum scrutiny to hardware control logic, subprocess calls (ectool), and exception handling."
+
+# --- Tool Configuration (Security and Quality) ---
+# Enable relevant tools, prioritizing security and general code quality.
+tools:
+  # Python-specific Linter/Formatter (assuming standard Python practices)
+  pylint:
+    enabled: true
+    config_file: ".pylintrc"  # Placeholder if a specific config exists
+    
+  # Static security analysis tool (simulated by AI review in assertive mode)
+  security:
+    enabled: true
+    
+  # Check for secrets/hardcoded credentials (important for hardware projects)
+  gitleaks:
+    enabled: true
+
+# --- Review Restriction (Not needed as auto_review: true is set) ---
+# This section is generally omitted when `auto_review` is enabled globally.
+# This prevents unintended configuration overrides.
+
+# --- Code Generation (Optional) ---
+# Request CodeRabbit to generate docstrings and unit tests for new or modified classes/methods.
+code_generation:
+  docstrings:
+    enabled: true
+    
+  unit_tests:
+    enabled: true
+    # Focus test generation on critical files
+    path_filters:
+      - "gui/core/rgb_color.py"
+      - "gui/hardware/controller.py"
+      - "gui/controller.py"
