@@ -1,0 +1,33 @@
+--- a/gui/controller.py
++++ b/gui/controller.py
+@@ -212,6 +212,10 @@
+         self.effect_manager.stop_all_effects()
+         self.stop_gui_preview()
+         self.hardware_controller.clear_all_leds()
++        # Safely update the preview, guarding against data issues
+         self.update_preview_keyboard(canvas=self.preview_canvas, elements_list='preview_keyboard_elements')
+ 
+     def setup_logging(self):
+@@ -249,6 +253,9 @@
+ 
+         # Ensure the log directory exists
+         log_dir.mkdir(parents=True, exist_ok=True)
++
++        # Initialize the logger for the instance
++        self.logger = logging.getLogger("Enhanced Chromebook RGB Control.GUI")
+ 
+         # Set up the file handler
+         log_file = log_dir / "gui_activity.log"
+@@ -775,8 +782,10 @@
+ 
+         colors = self.hardware_controller.get_all_zone_colors()
+         for elem_info in getattr(self, elements_list):
+-            if elem_info['type'] == 'key':
+-                key_id = elem_info['id']
++            # --- PATCH: Add type check to prevent TypeError on malformed data ---
++            if isinstance(elem_info, dict) and elem_info.get('type') == 'key':
++                key_id = elem_info.get('id')
++                # --- End Patch ---
+                 zone_idx = self.keyboard_layout.get_zone_for_key(key_id)
+                 if zone_idx is not None and zone_idx < len(colors):
+                     color_hex = colors[zone_idx].to_hex()
