@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""RGB lighting effects implementation with comprehensive error handling"""
+
+import time
+import math
+import colorsys
+import logging
+import random
+import threading
+from typing import List, Dict, Any, Optional, Callable
+from dataclasses import dataclass, field
+
+from ..core.rgb_color import RGBColor
+from ..core.constants import NUM_ZONES, MIN_ANIMATION_FRAME_DELAY, BASE_ANIMATION_DELAY_SPEED_1
+from ..hardware.controller import HardwareController 
+from ..utils.decorators import safe_execute 
+
+@dataclass
+class EffectState:
+    """Maintains state for effects that need persistence between frames."""
+    frame_count: int = 0
+    hue_offset: float = 0.0
+    position: int = 0
+    direction: int = 1
+
+class EffectLibrary:
+    logger = logging.getLogger('EffectLibrary')
+
+    @staticmethod
+    def _get_delay(speed: int) -> float:
+        """Calculate frame delay based on speed (1-10)."""
+        # Slower base delay, more impact from speed
+        base_delay = 0.5 
+        return max(MIN_ANIMATION_FRAME_DELAY, base_delay / speed)
+
+    @staticmethod
+    @safe_execute()
+    def breathing(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, rainbow_mode: bool, **kwargs):
+        state = EffectState()
+        delay = EffectLibrary._get_delay(speed)
+        while not stop_event.is_set():
+            brightness = (math.sin(state.frame_count * 0.1 * speed) + 1) / 2
+            base_color = RGBColor.from_hsv(state.hue_offset, 1, 1) if rainbow_mode else color
+            final_color = base_color.with_brightness(brightness)
+            
+            if not hardware.set_all_leds_color(final_color): break
+            if rainbow_mode: state.hue_offset = (state.hue_offset + 0.005) % 1.0
+            
+            state.frame_count += 1
+            if stop_event.wait(delay): break
+
+    @staticmethod
+    @safe_execute()
+    def color_cycle(stop_event: threading.Event, hardware: HardwareController, speed: int, **kwargs):
+        state = EffectState()
+        delay = EffectLibrary._get_delay(speed)
+        while not stop_event.is_set():
+            color = RGBColor.from_hsv(state.hue_offset, 1.0, 1.0)
+            if not hardware.set_all_leds_color(color): break
+            state.hue_offset = (state.hue_offset + 0.001 * speed) % 1.0
+            if stop_event.wait(delay): break
+
+    @staticmethod
+    @safe_execute()
+    def wave(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, rainbow_mode: bool, **kwargs):
+        state = EffectState()
+        delay = EffectLibrary._get_delay(speed)
+        while not stop_event.is_set():
+            colors = [RGBColor(0,0,0)] * NUM_ZONES
+            for i in range(NUM_ZONES):
+                dist = abs(i - state.position)
+                if dist < 2.0:
+                    intensity = (1 - (dist / 2.0)) ** 2
+                    base_color = RGBColor.from_hsv((state.hue_offset + i*0.1)%1.0,1,1) if rainbow_mode else color
+                    colors[i] = base_color.with_brightness(intensity)
+
+            if not hardware.set_zone_colors(colors): break
+            if rainbow_mode: state.hue_offset = (state.hue_offset + 0.005) % 1.0
+            state.position = (state.position + 0.1 * speed) % (NUM_ZONES + 2)
+            if stop_event.wait(delay): break
+
+    @staticmethod
+    @safe_execute()
+    def pulse(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, rainbow_mode: bool, **kwargs):
+        EffectLibrary.breathing(stop_event, hardware, speed, color, rainbow_mode, **kwargs)
+
+    @staticmethod
+    @safe_execute()
+    def zone_chase(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, rainbow_mode: bool, **kwargs):
+        state = EffectState()
+        delay = EffectLibrary._get_delay(speed * 1.5)
+        while not stop_event.is_set():
+            colors = [RGBColor(0,0,0)] * NUM_ZONES
+            base_color = RGBColor.from_hsv((state.hue_offset)%1.0,1,1) if rainbow_mode else color
+            colors[state.position] = base_color
+            if not hardware.set_zone_colors(colors): break
+            
+            if state.frame_count % (max(1, 11 - speed)) == 0:
+                state.position = (state.position + 1) % NUM_ZONES
+                if rainbow_mode: state.hue_offset = (state.hue_offset + 0.1) % 1.0
+            
+            state.frame_count += 1
+            if stop_event.wait(delay/2): break
+
+    @staticmethod
+    @safe_execute()
+    def rainbow_zones_cycle(stop_event: threading.Event, hardware: HardwareController, speed: int, **kwargs):
+        state = EffectState()
+        delay = EffectLibrary._get_delay(speed)
+        while not stop_event.is_set():
+            colors = [RGBColor.from_hsv((state.hue_offset + i/NUM_ZONES) % 1.0, 1, 1) for i in range(NUM_ZONES)]
+            if not hardware.set_zone_colors(colors): break
+            state.hue_offset = (state.hue_offset + 0.002 * speed) % 1.0
+            if stop_event.wait(delay): break
+
+    # --- New and Placeholder Effects ---
+    @staticmethod
+    @safe_execute()
+    def reactive(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, **kwargs):
+        """This effect is now primarily handled by the hardware controller's reactive mode."""
+        EffectLibrary.logger.info("Reactive effect started. Hardware mode is active. This loop will just wait.")
+        while not stop_event.is_set():
+            # In a real scenario with key feedback, logic would go here.
+            # For now, we just keep the effect "running" until stopped.
+            if stop_event.wait(0.2): break
+        EffectLibrary.logger.info("Reactive effect stopped.")
+
+    @staticmethod
+    @safe_execute()
+    def anti_reactive(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, **kwargs):
+        """This effect is now primarily handled by the hardware controller's reactive mode."""
+        EffectLibrary.logger.info("Anti-Reactive effect started. Hardware mode is active. This loop will just wait.")
+        while not stop_event.is_set():
+            if stop_event.wait(0.2): break
+        EffectLibrary.logger.info("Anti-Reactive effect stopped.")
+
+    # --- Add other effects here, using the same pattern ---
+    @staticmethod
+    @safe_execute()
+    def starlight(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, rainbow_mode: bool, **kwargs):
+        delay = EffectLibrary._get_delay(speed * 2)
+        while not stop_event.is_set():
+            colors = [RGBColor(0,0,0)] * NUM_ZONES
+            num_stars = random.randint(1, NUM_ZONES // 2)
+            for _ in range(num_stars):
+                zone = random.randint(0, NUM_ZONES-1)
+                brightness = random.uniform(0.2, 1.0)
+                base_color = RGBColor.from_hsv(random.random(), 1, 1) if rainbow_mode else color
+                colors[zone] = base_color.with_brightness(brightness)
+            if not hardware.set_zone_colors(colors): break
+            if stop_event.wait(delay): break
+
+    @staticmethod
+    @safe_execute()
+    def raindrop(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, **kwargs):
+        EffectLibrary.starlight(stop_event, hardware, speed, color, True, **kwargs)
+
+    @staticmethod
+    @safe_execute()
+    def scanner(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, **kwargs):
+        EffectLibrary.zone_chase(stop_event, hardware, speed, color, False, **kwargs)
+        
+    @staticmethod
+    @safe_execute()
+    def strobe(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, **kwargs):
+        EffectLibrary.pulse(stop_event, hardware, speed, color, False, **kwargs)
+
+    @staticmethod
+    @safe_execute()
+    def ripple(stop_event: threading.Event, hardware: HardwareController, speed: int, color: RGBColor, **kwargs):
+        EffectLibrary.wave(stop_event, hardware, speed, color, True, **kwargs)
+
+# Add this entire block to the very end of the file
+
+AVAILABLE_EFFECTS: Dict[str, Callable[..., None]] = {
+    "Breathing": EffectLibrary.breathing,
+    "Color Cycle": EffectLibrary.color_cycle,
+    "Wave": EffectLibrary.wave,
+    "Pulse": EffectLibrary.pulse,
+    "Zone Chase": EffectLibrary.zone_chase,
+    "Rainbow Zones": EffectLibrary.rainbow_zones_cycle,
+    "Reactive": EffectLibrary.reactive,
+    "Anti-Reactive": EffectLibrary.anti_reactive,
+    "Starlight": EffectLibrary.starlight,
+    "Raindrop": EffectLibrary.raindrop,
+    "Scanner": EffectLibrary.scanner,
+    "Strobe": EffectLibrary.strobe,
+    "Ripple": EffectLibrary.ripple,
+}
