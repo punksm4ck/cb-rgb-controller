@@ -92,6 +92,8 @@ def log_system_info(logger):
     logger.info(f"System: {platform.system()} {platform.release()} ({platform.machine()})")
     logger.info(f"Python: {sys.version.splitlines()[0]}")
 
+import os
+from pathlib import Path
 class RGBControllerGUI:
     def __init__(self, root: tk.Tk):
         self.root = root
@@ -749,7 +751,7 @@ Note: Global hotkeys require elevated privileges to capture system-wide key even
         all_effects = self.effect_manager.get_available_effects()
         effects_to_remove = {"Rainbow Wave", "Rainbow Breathing"}
         filtered_effects = [effect for effect in all_effects if effect not in effects_to_remove]
-        available_effects = ["None"] + filtered_effects + ["Reactive", "Anti-Reactive"]
+        available_effects = ["None"] + [e for e in filtered_effects if e not in ("Reactive", "Anti-Reactive")] + ["Reactive", "Anti-Reactive"]
         effect_combo = ttk.Combobox(effect_frame, textvariable=self.effect_var, values=available_effects, state="readonly", width=25)
         effect_combo.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
         effect_combo.bind("<<ComboboxSelected>>", self.on_effect_change)
@@ -1716,7 +1718,9 @@ The application will continue without tray functionality."""
             preview_method_name = f"preview_{effect_name.lower().replace('-', '_')}"
             if hasattr(self, preview_method_name):
                 self.start_preview_animation(getattr(self, preview_method_name))
-                self.log_status(f"Started {effect_name} effect preview. Full hardware reactive support requires hardware module updates.")
+                self.log_status(f"Started {effect_name} effect on Hardware.")
+                if hasattr(self.hardware, "start_reactive_mode"):
+                    self.hardware.start_reactive_mode(effect_name, params.get("color"), params.get("rainbow_mode", False))
                 self.settings.set("effect_name", effect_name)
                 self.settings.set("last_mode", "effect")
             else:
